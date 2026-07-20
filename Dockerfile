@@ -7,6 +7,9 @@ RUN apt-get update && apt-get install -y libpq-dev \
 # Copy your app files into the web server folder
 COPY . /var/www/html/
 
+# Allow Apache to write uploaded photos to the uploads folder
+RUN chown -R www-data:www-data /var/www/html/assets/uploads
+
 # Render expects apps to listen on port 10000
 RUN sed -i 's/80/10000/g' /etc/apache2/ports.conf /etc/apache2/sites-enabled/000-default.conf
 
