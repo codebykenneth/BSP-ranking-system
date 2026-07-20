@@ -12,6 +12,7 @@ $ranked = get_ranked_scouts($pdo);
 $top5   = array_slice($ranked, 0, 5);
 $avgAttendance = count($ranked) ? array_sum(array_column($ranked, 'attendance')) / count($ranked) : 0;
 $lowAttendance = get_low_attendance_scouts($pdo, 75);
+$pendingAttendance = get_pending_attendance($pdo);
 
 $pageTitle   = 'Dashboard';
 $currentPage = 'dashboard';
@@ -88,6 +89,35 @@ require_once __DIR__ . '/../includes/sidebar.php';
             </table>
         <?php endif; ?>
     </section>
+
+    <?php if (!empty($pendingAttendance)): ?>
+    <section class="panel">
+        <div class="panel-header">
+            <h2>Pending Attendance Approvals (<?= count($pendingAttendance) ?>)</h2>
+            <a href="<?= base_url('pages/attendance_approvals.php') ?>" class="link">Review all &rarr;</a>
+        </div>
+        <table class="data-table">
+            <thead>
+                <tr><th>Scout</th><th>Activity</th><th>Submitted</th><th>Reported Status</th></tr>
+            </thead>
+            <tbody>
+                <?php foreach (array_slice($pendingAttendance, 0, 5) as $p): ?>
+                    <tr>
+                        <td>
+                            <div class="name-cell">
+                                <?= scout_avatar(['name' => $p['scout_name'], 'photo' => $p['photo']], 'sm') ?>
+                                <span><?= e($p['scout_name']) ?></span>
+                            </div>
+                        </td>
+                        <td><?= e($p['event_title']) ?></td>
+                        <td><?= e(date('M j, g:i A', strtotime($p['submitted_at']))) ?></td>
+                        <td><span class="status-pill status-<?= strtolower($p['status']) ?>"><?= e($p['status']) ?></span></td>
+                    </tr>
+                <?php endforeach; ?>
+            </tbody>
+        </table>
+    </section>
+    <?php endif; ?>
 
     <?php if (!empty($lowAttendance)): ?>
     <section class="panel">
