@@ -5,7 +5,7 @@
 define('DB_HOST', 'ep-patient-base-avx701x3-pooler.c-11.us-east-1.aws.neon.tech');
 define('DB_NAME', 'neondb');
 define('DB_USER', 'neondb_owner');
-define('DB_PASS', getenv('DB_PASS') ?: 'npg_zwWZvfJ4D1iV');
+define('DB_PASS', getenv('DB_PASS') ?: 'npg_ZdQlI5o8MqAC');
 
 try {
     $pdo = new PDO(
