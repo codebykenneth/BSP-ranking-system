@@ -1,5 +1,6 @@
-date_default_timezone_set('Asia/Manila');
+
 <?php
+date_default_timezone_set('Asia/Manila');
 /**
  * Session bootstrap + login guard.
  * Include this at the very top of every protected page.
