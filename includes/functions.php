@@ -181,3 +181,74 @@ function get_recent_announcements(PDO $pdo, int $limit = 5): array
         return [];
     }
 }
+
+/**
+ * Point values for attendance status — used for the scout's points-based view.
+ */
+const ATTENDANCE_POINTS = [
+    'Present' => 10,
+    'Late'    => 8,
+    'Excused' => 0,
+    'Absent'  => 0,
+];
+
+/**
+ * A scout's activity log with individual point values (for the "how did I earn this" view).
+ */
+function get_scout_activities(PDO $pdo, int $scoutId): array
+{
+    $stmt = $pdo->prepare("SELECT * FROM activities WHERE scout_id = ? ORDER BY created_at DESC");
+    $stmt->execute([$scoutId]);
+    return $stmt->fetchAll();
+}
+
+/**
+ * Attendance history with the new point value attached to each record, plus a running total.
+ */
+function get_scout_attendance_with_points(PDO $pdo, int $scoutId): array
+{
+    $history = get_scout_attendance_history($pdo, $scoutId);
+    $total = 0;
+    foreach ($history as &$row) {
+        $pts = ATTENDANCE_POINTS[$row['status']] ?? 0;
+        $row['points'] = $pts;
+        $total += $pts;
+    }
+    unset($row);
+    return ['records' => $history, 'total' => $total];
+}
+
+/**
+ * Combined progress score out of 500: activity points + attendance points + rank bonus.
+ */
+function calculate_progress_score(float $activityPoints, float $attendancePoints, int $rankLevel): float
+{
+    $score = $activityPoints + $attendancePoints + ($rankLevel * 10);
+    return min(500, round($score, 2));
+}
+
+/**
+ * Full troop leaderboard: every scout's name + combined points, highest first.
+ */
+function get_troop_leaderboard(PDO $pdo): array
+{
+    $scouts = $pdo->query("SELECT id, name, rank_level FROM scouts")->fetchAll();
+
+    $leaderboard = [];
+    foreach ($scouts as $s) {
+        $activityPoints = get_total_points($pdo, (int) $s['id']);
+        $attRows = get_scout_attendance_history($pdo, (int) $s['id']);
+        $attendancePoints = 0;
+        foreach ($attRows as $r) {
+            $attendancePoints += ATTENDANCE_POINTS[$r['status']] ?? 0;
+        }
+        $leaderboard[] = [
+            'id' => (int) $s['id'],
+            'name' => $s['name'],
+            'points' => calculate_progress_score($activityPoints, $attendancePoints, (int) $s['rank_level']),
+        ];
+    }
+
+    usort($leaderboard, fn($a, $b) => $b['points'] <=> $a['points']);
+    return $leaderboard;
+}
