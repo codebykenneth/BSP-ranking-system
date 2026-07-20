@@ -9,8 +9,7 @@ define('DB_PASS', getenv('DB_PASS') ?: 'npg_ZdQlI5o8MqAC');
 
 try {
     $pdo = new PDO(
-        "pgsql:host=" . DB_HOST . ";port=5432;dbname=" . DB_NAME . ";sslmode=require",")
-        $pdo->exec("SET TIME ZONE 'Asia/Manila'
+        "pgsql:host=" . DB_HOST . ";port=5432;dbname=" . DB_NAME . ";sslmode=require",
         DB_USER,
         DB_PASS,
         [
@@ -19,6 +18,10 @@ try {
             PDO::ATTR_EMULATE_PREPARES   => false,
         ]
     );
+
+    // Set timezone
+    $pdo->exec("SET TIME ZONE 'Asia/Manila';");
+
 } catch (PDOException $e) {
     die("Database connection failed: " . $e->getMessage());
 }
