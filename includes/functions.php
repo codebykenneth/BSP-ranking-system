@@ -183,6 +183,63 @@ function get_recent_announcements(PDO $pdo, int $limit = 5): array
 }
 
 /**
+ * Count of scout self-submitted attendance rows still awaiting admin approval.
+ */
+function get_pending_attendance_count(PDO $pdo): int
+{
+    try {
+        return (int) $pdo->query("SELECT COUNT(*) FROM attendance WHERE submission_status = 'pending'")->fetchColumn();
+    } catch (PDOException $e) {
+        return 0;
+    }
+}
+
+/**
+ * Every pending (scout self-submitted, unapproved) attendance row, with the
+ * scout and event info joined in, oldest submission first.
+ */
+function get_pending_attendance(PDO $pdo): array
+{
+    try {
+        $stmt = $pdo->query(
+            "SELECT att.id, att.status, att.excuse_reason, att.submitted_at,
+                    e.id AS event_id, e.title AS event_title, e.event_date, e.call_time,
+                    s.id AS scout_id, s.name AS scout_name, s.photo
+             FROM attendance att
+             JOIN events e ON e.id = att.event_id
+             JOIN scouts s ON s.id = att.scout_id
+             WHERE att.submission_status = 'pending'
+             ORDER BY att.submitted_at ASC"
+        );
+        return $stmt->fetchAll();
+    } catch (PDOException $e) {
+        return [];
+    }
+}
+
+/**
+ * Events happening today, soonest call time first (events with no call
+ * time set are listed last).
+ */
+function get_todays_events(PDO $pdo): array
+{
+    $stmt = $pdo->query("SELECT * FROM events WHERE event_date = CURRENT_DATE ORDER BY call_time ASC NULLS LAST");
+    return $stmt->fetchAll();
+}
+
+/**
+ * One scout's attendance row for a specific event, or null if they
+ * haven't submitted / been marked yet.
+ */
+function get_scout_attendance_for_event(PDO $pdo, int $eventId, int $scoutId): ?array
+{
+    $stmt = $pdo->prepare("SELECT * FROM attendance WHERE event_id = ? AND scout_id = ?");
+    $stmt->execute([$eventId, $scoutId]);
+    $row = $stmt->fetch();
+    return $row ?: null;
+}
+
+/**
  * Point values for attendance status — used for the scout's points-based view.
  */
 const ATTENDANCE_POINTS = [
