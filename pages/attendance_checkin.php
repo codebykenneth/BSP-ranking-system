@@ -17,8 +17,11 @@ if (!$event) {
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $statuses = $_POST['status'] ?? []; // [scout_id => status]
     $stmt = $pdo->prepare(
-        "INSERT INTO attendance (event_id, scout_id, status) VALUES (?, ?, ?)
-         ON DUPLICATE KEY UPDATE status = VALUES(status)"
+        "INSERT INTO attendance (event_id, scout_id, status, submission_status, submitted_by_scout, submitted_at)
+         VALUES (?, ?, ?, 'confirmed', FALSE, NOW())
+         ON CONFLICT (event_id, scout_id) DO UPDATE SET
+            status = EXCLUDED.status,
+            submission_status = 'confirmed'"
     );
     foreach ($statuses as $scoutId => $status) {
         if (!in_array($status, ['Present', 'Late', 'Absent', 'Excused'], true)) continue;
@@ -31,10 +34,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 $scouts = $pdo->query("SELECT id, name, troop, photo FROM scouts ORDER BY name ASC")->fetchAll();
 
 $existing = [];
-$stmt = $pdo->prepare("SELECT scout_id, status FROM attendance WHERE event_id = ?");
+$stmt = $pdo->prepare("SELECT scout_id, status, submission_status, excuse_reason FROM attendance WHERE event_id = ?");
 $stmt->execute([$eventId]);
 foreach ($stmt->fetchAll() as $row) {
-    $existing[$row['scout_id']] = $row['status'];
+    $existing[$row['scout_id']] = $row;
 }
 
 $printMode = isset($_GET['print']);
@@ -110,12 +113,23 @@ require_once __DIR__ . '/../includes/sidebar.php';
                     </thead>
                     <tbody>
                         <?php foreach ($scouts as $sc): ?>
-                            <?php $current = $existing[$sc['id']] ?? 'Present'; ?>
+                            <?php
+                                $existingRow = $existing[$sc['id']] ?? null;
+                                $current = $existingRow['status'] ?? 'Present';
+                            ?>
                             <tr>
                                 <td>
                                     <div class="name-cell">
                                         <?= scout_avatar($sc, 'sm') ?>
-                                        <span><?= e($sc['name']) ?></span>
+                                        <span>
+                                            <?= e($sc['name']) ?>
+                                            <?php if ($existingRow && $existingRow['submission_status'] === 'pending'): ?>
+                                                <span class="status-pill status-pending" style="margin-left:6px;">Self check-in &mdash; pending</span>
+                                            <?php endif; ?>
+                                            <?php if ($existingRow && !empty($existingRow['excuse_reason'])): ?>
+                                                <div style="font-size:12px;color:var(--ink-soft);">Reason: <?= e($existingRow['excuse_reason']) ?></div>
+                                            <?php endif; ?>
+                                        </span>
                                     </div>
                                 </td>
                                 <td><?= e($sc['troop']) ?></td>
