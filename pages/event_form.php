@@ -7,18 +7,20 @@ require_once __DIR__ . '/../includes/functions.php';
 $errors = [];
 $title = '';
 $eventDate = date('Y-m-d');
+$callTime = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $title     = trim($_POST['title'] ?? '');
     $eventDate = $_POST['event_date'] ?? date('Y-m-d');
+    $callTime  = trim($_POST['call_time'] ?? '');
 
     if ($title === '') $errors[] = 'Event name is required.';
     if (empty($eventDate)) $errors[] = 'Date is required.';
 
     if (empty($errors)) {
         $checkinCode = strtoupper(substr(bin2hex(random_bytes(4)), 0, 6));
-        $stmt = $pdo->prepare("INSERT INTO events (title, event_date, checkin_code) VALUES (?, ?, ?)");
-        $stmt->execute([$title, $eventDate, $checkinCode]);
+        $stmt = $pdo->prepare("INSERT INTO events (title, event_date, checkin_code, call_time) VALUES (?, ?, ?, ?)");
+        $stmt->execute([$title, $eventDate, $checkinCode, $callTime !== '' ? $callTime : null]);
         header('Location: ' . base_url('pages/events.php?saved=1'));
         exit;
     }
@@ -50,6 +52,9 @@ require_once __DIR__ . '/../includes/sidebar.php';
 
             <label for="event_date">Date</label>
             <input type="date" id="event_date" name="event_date" value="<?= e($eventDate) ?>" required>
+
+            <label for="call_time">Call Time <span style="font-weight:400;color:var(--ink-soft);">(optional &mdash; time scouts are expected to be present by, used for scout self check-in)</span></label>
+            <input type="time" id="call_time" name="call_time" value="<?= e($callTime) ?>">
 
             <div class="form-actions">
                 <button type="submit" class="btn btn-primary">Add Event</button>
