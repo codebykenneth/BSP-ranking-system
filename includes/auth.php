@@ -39,5 +39,5 @@ function require_scout_login(): void
  */
 function base_url(string $path = ''): string
 {
-    return '/bsp-ranking-system/' . ltrim($path, '/');
+    return '/' . ltrim($path, '/');
 }
