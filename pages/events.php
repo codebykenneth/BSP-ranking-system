@@ -60,7 +60,12 @@ require_once __DIR__ . '/../includes/sidebar.php';
                     <?php foreach ($events as $ev): ?>
                         <tr>
                             <td><?= e(date('M j, Y', strtotime($ev['event_date']))) ?></td>
-                            <td><?= e($ev['title']) ?></td>
+                            <td>
+                                <?= e($ev['title']) ?>
+                                <?php if (!empty($ev['call_time'])): ?>
+                                    <div style="font-size:12px;color:var(--ink-soft);">Call time: <?= e(date('g:i A', strtotime($ev['call_time']))) ?></div>
+                                <?php endif; ?>
+                            </td>
                             <td>
                                 <?php if ((int) $ev['marked_count'] > 0): ?>
                                     <span class="badge">&#10003; <?= (int) $ev['marked_count'] ?> / <?= (int) $ev['total_scouts'] ?> marked</span>
