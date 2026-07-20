@@ -131,7 +131,10 @@ $daily_quote = $bsp_quotes[array_rand($bsp_quotes)];
                 <small>View only &mdash; see an admin to update your info</small>
             </div>
         </div>
-        <a href="<?= base_url('logout.php') ?>" class="logout-link">Log out</a>
+        <div style="display:flex;align-items:center;gap:14px;">
+            <a href="<?= base_url('scout_attendance.php') ?>" class="btn btn-primary btn-small">Take Attendance</a>
+            <a href="<?= base_url('logout.php') ?>" class="logout-link">Log out</a>
+        </div>
     </header>
 
     <main class="scout-portal-main">
