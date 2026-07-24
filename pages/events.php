@@ -35,7 +35,13 @@ require_once __DIR__ . '/../includes/sidebar.php';
     </div>
 
     <?php if (isset($_GET['saved'])): ?>
-        <div class="alert alert-success">Event saved successfully.</div>
+        <div class="alert alert-success">
+            <?php if (!empty($_GET['count']) && (int) $_GET['count'] > 1): ?>
+                <?= (int) $_GET['count'] ?> events created.
+            <?php else: ?>
+                Event saved successfully.
+            <?php endif; ?>
+        </div>
     <?php elseif (isset($_GET['deleted'])): ?>
         <div class="alert alert-success">Event deleted.</div>
     <?php elseif (isset($_GET['checked_in'])): ?>
