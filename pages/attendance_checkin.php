@@ -21,16 +21,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
          VALUES (?, ?, ?, 'confirmed', FALSE, NOW())
          ON CONFLICT (event_id, scout_id) DO UPDATE SET
             status = EXCLUDED.status,
-            submission_status = 'confirmed'
-         RETURNING id"
+            submission_status = 'confirmed'"
     );
     foreach ($statuses as $scoutId => $status) {
         if (!in_array($status, ['Present', 'Late', 'Absent', 'Excused'], true)) continue;
         $stmt->execute([$eventId, (int) $scoutId, $status]);
-        $row = $stmt->fetch();
-        if ($row) {
-            sync_attendance_points($pdo, (int) $row['id'], $status, (int) $scoutId, $event['title'], $event['event_date'], (int) $event['points_value']);
-        }
     }
     header('Location: ' . base_url('pages/events.php?checked_in=1'));
     exit;
