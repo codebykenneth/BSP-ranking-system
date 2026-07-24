@@ -2,6 +2,8 @@
 /**
  * Database connection (PDO) - Neon PostgreSQL
  */
+date_default_timezone_set('Asia/Manila');
+
 define('DB_HOST', 'ep-patient-base-avx701x3-pooler.c-11.us-east-1.aws.neon.tech');
 define('DB_NAME', 'neondb');
 define('DB_USER', 'neondb_owner');
@@ -18,6 +20,7 @@ try {
             PDO::ATTR_EMULATE_PREPARES   => true,
         ]
     );
+    $pdo->exec("SET TIME ZONE 'Asia/Manila'");
 } catch (PDOException $e) {
     die("Database connection failed: " . $e->getMessage());
 }
