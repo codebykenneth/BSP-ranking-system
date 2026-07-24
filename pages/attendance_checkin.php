@@ -104,7 +104,8 @@ require_once __DIR__ . '/../includes/sidebar.php';
         <?php if (empty($scouts)): ?>
             <p class="empty-state">No scouts to mark attendance for yet.</p>
         <?php else: ?>
-            <form method="POST">
+            <p id="marked-summary" style="font-size:13px;color:var(--ink-soft);margin-bottom:12px;"></p>
+            <form method="POST" id="attendance-form">
                 <table class="data-table">
                     <thead>
                         <tr>
@@ -120,9 +121,9 @@ require_once __DIR__ . '/../includes/sidebar.php';
                         <?php foreach ($scouts as $sc): ?>
                             <?php
                                 $existingRow = $existing[$sc['id']] ?? null;
-                                $current = $existingRow['status'] ?? 'Present';
+                                $current = $existingRow['status'] ?? '';
                             ?>
-                            <tr>
+                            <tr <?= $current === '' ? 'class="row-unmarked"' : '' ?>>
                                 <td>
                                     <div class="name-cell">
                                         <?= scout_avatar($sc, 'sm') ?>
@@ -130,6 +131,10 @@ require_once __DIR__ . '/../includes/sidebar.php';
                                             <?= e($sc['name']) ?>
                                             <?php if ($existingRow && $existingRow['submission_status'] === 'pending'): ?>
                                                 <span class="status-pill status-pending" style="margin-left:6px;">Self check-in &mdash; pending</span>
+                                            <?php elseif ($existingRow): ?>
+                                                <span class="badge" style="margin-left:6px;">&#10003; Recorded</span>
+                                            <?php else: ?>
+                                                <span class="status-pill" style="margin-left:6px;background:var(--khaki-light);color:var(--ink-soft);">Not marked yet</span>
                                             <?php endif; ?>
                                             <?php if ($existingRow && !empty($existingRow['excuse_reason'])): ?>
                                                 <div style="font-size:12px;color:var(--ink-soft);">Reason: <?= e($existingRow['excuse_reason']) ?></div>
@@ -156,4 +161,31 @@ require_once __DIR__ . '/../includes/sidebar.php';
         <?php endif; ?>
     </section>
 </main>
+<style>
+.row-unmarked { background: #FBF7EA; }
+</style>
+<script>
+(function () {
+    var form = document.getElementById('attendance-form');
+    var summary = document.getElementById('marked-summary');
+    if (!form || !summary) return;
+    var radioGroups = {};
+    form.querySelectorAll('input[type="radio"]').forEach(function (r) {
+        radioGroups[r.name] = radioGroups[r.name] || [];
+        radioGroups[r.name].push(r);
+    });
+    var total = Object.keys(radioGroups).length;
+
+    function updateSummary() {
+        var marked = 0;
+        Object.keys(radioGroups).forEach(function (name) {
+            if (radioGroups[name].some(function (r) { return r.checked; })) marked++;
+        });
+        summary.textContent = marked + ' of ' + total + ' scouts marked so far.';
+    }
+
+    form.addEventListener('change', updateSummary);
+    updateSummary();
+})();
+</script>
 <?php require_once __DIR__ . '/../includes/footer.php'; ?>
