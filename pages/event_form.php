@@ -11,12 +11,14 @@ $mode = 'single';
 $title = '';
 $eventDate = date('Y-m-d');
 $callTime = '';
+$points = 5;
 
 // Recurring field defaults
 $recTitle = '';
 $recStart = date('Y-m-d');
 $recEnd   = date('Y-m-d', strtotime('+4 weeks'));
 $recCallTime = '';
+$recPoints = 5;
 $recDays = ['1', '2', '3', '4', '5']; // Mon-Fri by default (0=Sun..6=Sat)
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -27,11 +29,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $recStart    = $_POST['rec_start'] ?? date('Y-m-d');
         $recEnd      = $_POST['rec_end'] ?? date('Y-m-d');
         $recCallTime = trim($_POST['rec_call_time'] ?? '');
+        $recPoints   = (int) ($_POST['rec_points'] ?? 5);
         $recDays     = $_POST['rec_days'] ?? [];
 
         if ($recTitle === '') $errors[] = 'Event name is required.';
         if (empty($recStart) || empty($recEnd)) $errors[] = 'Start and end dates are required.';
         if (empty($recDays)) $errors[] = 'Pick at least one day of the week.';
+        if ($recPoints < 0) $errors[] = 'Points can\'t be negative.';
         if (!empty($recStart) && !empty($recEnd) && strtotime($recEnd) < strtotime($recStart)) {
             $errors[] = 'End date must be on or after the start date.';
         }
@@ -43,7 +47,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (empty($errors)) {
             $created = 0;
             $checkStmt = $pdo->prepare("SELECT id FROM events WHERE title = ? AND event_date = ?");
-            $insertStmt = $pdo->prepare("INSERT INTO events (title, event_date, checkin_code, call_time) VALUES (?, ?, ?, ?)");
+            $insertStmt = $pdo->prepare("INSERT INTO events (title, event_date, checkin_code, call_time, points_value) VALUES (?, ?, ?, ?, ?)");
 
             $current = new DateTime($recStart);
             $end     = new DateTime($recEnd);
@@ -56,7 +60,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $checkStmt->execute([$recTitle, $dateStr]);
                     if (!$checkStmt->fetch()) {
                         $checkinCode = strtoupper(substr(bin2hex(random_bytes(4)), 0, 6));
-                        $insertStmt->execute([$recTitle, $dateStr, $checkinCode, $recCallTime !== '' ? $recCallTime : null]);
+                        $insertStmt->execute([$recTitle, $dateStr, $checkinCode, $recCallTime !== '' ? $recCallTime : null, $recPoints]);
                         $created++;
                     }
                 }
@@ -70,14 +74,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $title     = trim($_POST['title'] ?? '');
         $eventDate = $_POST['event_date'] ?? date('Y-m-d');
         $callTime  = trim($_POST['call_time'] ?? '');
+        $points    = (int) ($_POST['points'] ?? 5);
 
         if ($title === '') $errors[] = 'Event name is required.';
         if (empty($eventDate)) $errors[] = 'Date is required.';
+        if ($points < 0) $errors[] = 'Points can\'t be negative.';
 
         if (empty($errors)) {
             $checkinCode = strtoupper(substr(bin2hex(random_bytes(4)), 0, 6));
-            $stmt = $pdo->prepare("INSERT INTO events (title, event_date, checkin_code, call_time) VALUES (?, ?, ?, ?)");
-            $stmt->execute([$title, $eventDate, $checkinCode, $callTime !== '' ? $callTime : null]);
+            $stmt = $pdo->prepare("INSERT INTO events (title, event_date, checkin_code, call_time, points_value) VALUES (?, ?, ?, ?, ?)");
+            $stmt->execute([$title, $eventDate, $checkinCode, $callTime !== '' ? $callTime : null, $points]);
             header('Location: ' . base_url('pages/events.php?saved=1'));
             exit;
         }
@@ -111,18 +117,37 @@ $dayLabels = ['0' => 'Sun', '1' => 'Mon', '2' => 'Tue', '3' => 'Wed', '4' => 'Th
             <button type="button" class="mode-tab <?= $mode === 'recurring' ? 'active' : '' ?>" data-mode="recurring">Recurring Schedule</button>
         </div>
 
+        <datalist id="event-name-suggestions">
+            <option value="Troop Meeting">
+            <option value="Practice">
+            <option value="Flag Ceremony">
+            <option value="Flag Retreat">
+            <option value="Camporee">
+            <option value="District Camp">
+            <option value="Area 1 Camp">
+            <option value="Backyard Camping Survival">
+            <option value="Investiture Ceremony">
+            <option value="Community Service Day">
+            <option value="First Aid Training">
+            <option value="Skills Training">
+            <option value="Scouting Month Activity">
+        </datalist>
+
         <!-- SINGLE EVENT -->
         <form method="POST" class="stacked-form mode-panel" id="panel-single" style="<?= $mode === 'recurring' ? 'display:none;' : '' ?>">
             <input type="hidden" name="mode" value="single">
 
             <label for="title">Event Name</label>
-            <input type="text" id="title" name="title" value="<?= e($title) ?>" placeholder="e.g. Weekly Troop Meeting">
+            <input type="text" id="title" name="title" value="<?= e($title) ?>" placeholder="e.g. Weekly Troop Meeting" list="event-name-suggestions" autocomplete="off">
 
             <label for="event_date">Date</label>
             <input type="date" id="event_date" name="event_date" value="<?= e($eventDate) ?>">
 
             <label for="call_time">Call Time <span style="font-weight:400;color:var(--ink-soft);">(optional &mdash; time scouts are expected to be present by, used for scout self check-in)</span></label>
             <input type="time" id="call_time" name="call_time" value="<?= e($callTime) ?>">
+
+            <label for="points">Points for Attendance <span style="font-weight:400;color:var(--ink-soft);">(awarded automatically when a scout is marked Present or Late)</span></label>
+            <input type="number" id="points" name="points" min="0" step="1" value="<?= e((string) $points) ?>">
 
             <div class="form-actions">
                 <button type="submit" class="btn btn-primary">Add Event</button>
@@ -135,7 +160,7 @@ $dayLabels = ['0' => 'Sun', '1' => 'Mon', '2' => 'Tue', '3' => 'Wed', '4' => 'Th
             <input type="hidden" name="mode" value="recurring">
 
             <label for="rec_title">Event Name</label>
-            <input type="text" id="rec_title" name="rec_title" value="<?= e($recTitle) ?>" placeholder="e.g. Practice">
+            <input type="text" id="rec_title" name="rec_title" value="<?= e($recTitle) ?>" placeholder="e.g. Practice" list="event-name-suggestions" autocomplete="off">
 
             <div class="form-row">
                 <div>
@@ -150,6 +175,9 @@ $dayLabels = ['0' => 'Sun', '1' => 'Mon', '2' => 'Tue', '3' => 'Wed', '4' => 'Th
 
             <label for="rec_call_time">Call Time <span style="font-weight:400;color:var(--ink-soft);">(optional, applies to every date created)</span></label>
             <input type="time" id="rec_call_time" name="rec_call_time" value="<?= e($recCallTime) ?>">
+
+            <label for="rec_points">Points for Attendance <span style="font-weight:400;color:var(--ink-soft);">(applies to every date created)</span></label>
+            <input type="number" id="rec_points" name="rec_points" min="0" step="1" value="<?= e((string) $recPoints) ?>">
 
             <label>Repeat On</label>
             <div class="day-picker">
@@ -274,6 +302,37 @@ $dayLabels = ['0' => 'Sun', '1' => 'Mon', '2' => 'Tue', '3' => 'Wed', '4' => 'Th
     [startInput, endInput].forEach(function (el) { el.addEventListener('change', renderPreview); });
     dayChecks.forEach(function (el) { el.addEventListener('change', renderPreview); });
     renderPreview();
+
+    // Suggested points per event name -- these are just starting defaults,
+    // admins can always type over them.
+    var pointSuggestions = {
+        'troop meeting': 5,
+        'practice': 5,
+        'flag ceremony': 10,
+        'flag retreat': 10,
+        'first aid training': 15,
+        'skills training': 15,
+        'community service day': 20,
+        'investiture ceremony': 20,
+        'scouting month activity': 20,
+        'backyard camping survival': 25,
+        'camporee': 30,
+        'district camp': 40,
+        'area 1 camp': 50
+    };
+
+    function wireSuggestion(nameInput, pointsInput) {
+        var touchedPoints = false;
+        pointsInput.addEventListener('input', function () { touchedPoints = true; });
+        nameInput.addEventListener('input', function () {
+            if (touchedPoints) return; // don't overwrite a value the admin already typed
+            var match = pointSuggestions[nameInput.value.trim().toLowerCase()];
+            if (match !== undefined) pointsInput.value = match;
+        });
+    }
+
+    wireSuggestion(document.getElementById('title'), document.getElementById('points'));
+    wireSuggestion(document.getElementById('rec_title'), document.getElementById('rec_points'));
 })();
 </script>
 <?php require_once __DIR__ . '/../includes/footer.php'; ?>
