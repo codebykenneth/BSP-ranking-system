@@ -29,6 +29,26 @@ $activities = $stmt->fetchAll();
 
 $scoutsList = $pdo->query("SELECT id, name FROM scouts ORDER BY name ASC")->fetchAll();
 
+// Read-only view of attendance-earned points — pulled live from confirmed
+// attendance records. This never writes to the activities table, so
+// attendance points can never double-count with manually logged activities.
+$attSql = "SELECT att.status, att.recorded_at, e.title AS event_title, e.event_date,
+                  s.id AS scout_id, s.name AS scout_name, s.troop
+           FROM attendance att
+           JOIN events e ON e.id = att.event_id
+           JOIN scouts s ON s.id = att.scout_id
+           WHERE att.submission_status = 'confirmed'";
+$attParams = [];
+if ($scoutFilter > 0) {
+    $attSql .= " AND att.scout_id = ?";
+    $attParams[] = $scoutFilter;
+}
+$attSql .= " ORDER BY e.event_date DESC";
+
+$attStmt = $pdo->prepare($attSql);
+$attStmt->execute($attParams);
+$attendanceRows = $attStmt->fetchAll();
+
 $pageTitle   = 'Activities';
 $currentPage = 'activities';
 require_once __DIR__ . '/../includes/header.php';
@@ -91,6 +111,50 @@ require_once __DIR__ . '/../includes/sidebar.php';
                                    class="btn btn-small btn-danger"
                                    onclick="return confirm('Delete this activity?');">Delete</a>
                             </td>
+                        </tr>
+                    <?php endforeach; ?>
+                </tbody>
+            </table>
+        <?php endif; ?>
+    </section>
+
+    <section class="panel" style="margin-top:24px;">
+        <div class="content-header-row" style="margin-bottom:8px;">
+            <div>
+                <h2 style="margin:0;">Attendance Points <span style="font-size:13px;font-weight:normal;color:var(--ink-soft);">(view only)</span></h2>
+                <p style="margin:4px 0 0;font-size:13px;color:var(--ink-soft);">
+                    How each scout earned points through attendance. Present = <?= ATTENDANCE_POINTS['Present'] ?> pts &middot;
+                    Late = <?= ATTENDANCE_POINTS['Late'] ?> pts &middot; Excused/Absent = 0 pts.
+                    This is separate from Activity Points above and cannot be edited here &mdash;
+                    manage attendance from <a href="<?= base_url('pages/events.php') ?>">Events</a> or <a href="<?= base_url('pages/attendance_approvals.php') ?>">Approvals</a>.
+                </p>
+            </div>
+        </div>
+
+        <?php if (empty($attendanceRows)): ?>
+            <p class="empty-state">No confirmed attendance yet.</p>
+        <?php else: ?>
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Scout</th>
+                        <th>Troop</th>
+                        <th>Event</th>
+                        <th>Status</th>
+                        <th>Points</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php foreach ($attendanceRows as $r): ?>
+                        <?php $pts = ATTENDANCE_POINTS[$r['status']] ?? 0; ?>
+                        <tr>
+                            <td><?= e(date('M j, Y', strtotime($r['event_date']))) ?></td>
+                            <td><?= e($r['scout_name']) ?></td>
+                            <td><?= e($r['troop']) ?></td>
+                            <td><?= e($r['event_title']) ?></td>
+                            <td><span class="status-pill status-<?= strtolower($r['status']) ?>"><?= e($r['status']) ?></span></td>
+                            <td><strong>+<?= (int) $pts ?></strong></td>
                         </tr>
                     <?php endforeach; ?>
                 </tbody>
