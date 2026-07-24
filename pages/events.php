@@ -71,6 +71,7 @@ require_once __DIR__ . '/../includes/sidebar.php';
                                 <?php if (!empty($ev['call_time'])): ?>
                                     <div style="font-size:12px;color:var(--ink-soft);">Call time: <?= e(date('g:i A', strtotime($ev['call_time']))) ?></div>
                                 <?php endif; ?>
+                                <div style="font-size:12px;color:var(--ink-soft);">+<?= (int) $ev['points_value'] ?> pts for attendance</div>
                             </td>
                             <td>
                                 <?php if ((int) $ev['marked_count'] > 0): ?>
