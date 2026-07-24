@@ -240,6 +240,34 @@ function get_scout_attendance_for_event(PDO $pdo, int $eventId, int $scoutId): ?
 }
 
 /**
+ * Keep the activities table in sync with a single attendance record's
+ * current status. Present/Late earns points automatically; anything else
+ * (Absent/Excused) removes any previously-awarded entry. Safe to call
+ * repeatedly — it always deletes the old auto-entry first, so overriding
+ * a status (e.g. admin corrects Present -> Absent) never double-counts.
+ */
+function sync_attendance_points(
+    PDO $pdo,
+    int $attendanceId,
+    string $status,
+    int $scoutId,
+    string $eventTitle,
+    string $eventDate,
+    int $pointsPerAttendance = 5
+): void {
+    $del = $pdo->prepare("DELETE FROM activities WHERE attendance_id = ?");
+    $del->execute([$attendanceId]);
+
+    if (in_array($status, ['Present', 'Late'], true)) {
+        $ins = $pdo->prepare(
+            "INSERT INTO activities (scout_id, activity_name, points, activity_date, attendance_id)
+             VALUES (?, ?, ?, ?, ?)"
+        );
+        $ins->execute([$scoutId, $eventTitle, $pointsPerAttendance, $eventDate, $attendanceId]);
+    }
+}
+
+/**
  * Point values for attendance status — used for the scout's points-based view.
  */
 const ATTENDANCE_POINTS = [
