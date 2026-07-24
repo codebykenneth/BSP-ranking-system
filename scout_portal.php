@@ -29,6 +29,7 @@ foreach ($ranked as $i => $s) {
 
 $history = get_scout_attendance_history($pdo, $scoutId);
 $announcements = get_recent_announcements($pdo, 5);
+$upcomingEvents = get_upcoming_events($pdo, 5);
 
 $activities = get_scout_activities($pdo, $scoutId);
 $attendanceData = get_scout_attendance_with_points($pdo, $scoutId);
@@ -197,6 +198,27 @@ $daily_quote = $bsp_quotes[array_rand($bsp_quotes)];
                         </article>
                     <?php endforeach; ?>
                 </div>
+            <?php endif; ?>
+        </section>
+
+        <section class="panel">
+            <div class="panel-header"><h2>Upcoming Events</h2></div>
+            <?php if (empty($upcomingEvents)): ?>
+                <p class="empty-state">No upcoming events scheduled yet.</p>
+            <?php else: ?>
+                <table class="data-table">
+                    <thead><tr><th>Date</th><th>Event</th><th>Call Time</th><th>Points</th></tr></thead>
+                    <tbody>
+                        <?php foreach ($upcomingEvents as $ev): ?>
+                            <tr>
+                                <td><?= e(date('M j, Y', strtotime($ev['event_date']))) ?></td>
+                                <td><?= e($ev['title']) ?></td>
+                                <td><?= !empty($ev['call_time']) ? e(date('g:i A', strtotime($ev['call_time']))) : '&mdash;' ?></td>
+                                <td>+<?= (int) ($ev['points_value'] ?? 0) ?> pts</td>
+                            </tr>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
             <?php endif; ?>
         </section>
 
