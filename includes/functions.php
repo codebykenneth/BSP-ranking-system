@@ -58,10 +58,6 @@ function get_total_points(PDO $pdo, int $scoutId): int
  * Computed attendance % for one scout from real event records.
  * Only counts CONFIRMED attendance — pending self check-ins don't count
  * until an admin approves them.
- * Present = full credit, Late = half credit, Absent = none,
- * Excused events don't count against them (excluded from the denominator).
- * Falls back to the scout's manually-set `attendance` field if they have
- * no confirmed attendance records yet.
  */
 function get_attendance_percentage(PDO $pdo, int $scoutId, float $fallback = 0): float
 {
@@ -75,7 +71,6 @@ function get_attendance_percentage(PDO $pdo, int $scoutId, float $fallback = 0):
         $stmt->execute([$scoutId]);
         $row = $stmt->fetch();
     } catch (PDOException $e) {
-        // attendance table doesn't exist yet (migration not run) — use the manual fallback.
         return round($fallback, 2);
     }
 
@@ -142,7 +137,6 @@ function get_ranked_scouts(PDO $pdo): array
 
 /**
  * Scouts whose computed attendance % falls below the given threshold.
- * Useful for a "needs attention" dashboard widget.
  */
 function get_low_attendance_scouts(PDO $pdo, float $threshold = 75): array
 {
@@ -152,8 +146,7 @@ function get_low_attendance_scouts(PDO $pdo, float $threshold = 75): array
 
 /**
  * Full per-event attendance history for one scout, most recent first.
- * Only CONFIRMED attendance shows here — pending self check-ins won't
- * appear (or count for points) until an admin approves them.
+ * Only CONFIRMED attendance shows here.
  */
 function get_scout_attendance_history(PDO $pdo, int $scoutId): array
 {
@@ -170,8 +163,6 @@ function get_scout_attendance_history(PDO $pdo, int $scoutId): array
 
 /**
  * Most recent admin announcements, for the scout portal.
- * Returns [] instead of erroring if the announcements table
- * hasn't been created yet (migration not run).
  */
 function get_recent_announcements(PDO $pdo, int $limit = 5): array
 {
@@ -198,8 +189,7 @@ function get_pending_attendance_count(PDO $pdo): int
 }
 
 /**
- * Every pending (scout self-submitted, unapproved) attendance row, with the
- * scout and event info joined in, oldest submission first.
+ * Every pending (scout self-submitted, unapproved) attendance row.
  */
 function get_pending_attendance(PDO $pdo): array
 {
@@ -221,8 +211,7 @@ function get_pending_attendance(PDO $pdo): array
 }
 
 /**
- * Events happening today, soonest call time first (events with no call
- * time set are listed last).
+ * Events happening today, soonest call time first.
  */
 function get_todays_events(PDO $pdo): array
 {
@@ -231,8 +220,21 @@ function get_todays_events(PDO $pdo): array
 }
 
 /**
- * One scout's attendance row for a specific event, or null if they
- * haven't submitted / been marked yet.
+ * Events happening after today, soonest first. Read-only preview for
+ * scouts — no check-in here, that only happens on the day of the event.
+ */
+function get_upcoming_events(PDO $pdo, int $limit = 5): array
+{
+    $stmt = $pdo->prepare(
+        "SELECT * FROM events WHERE event_date > CURRENT_DATE ORDER BY event_date ASC, call_time ASC LIMIT ?"
+    );
+    $stmt->bindValue(1, $limit, PDO::PARAM_INT);
+    $stmt->execute();
+    return $stmt->fetchAll();
+}
+
+/**
+ * One scout's attendance row for a specific event, or null.
  */
 function get_scout_attendance_for_event(PDO $pdo, int $eventId, int $scoutId): ?array
 {
@@ -243,9 +245,9 @@ function get_scout_attendance_for_event(PDO $pdo, int $eventId, int $scoutId): ?
 }
 
 /**
- * Point values for attendance status — this is the ONLY place attendance
- * earns points now. It no longer writes into the activities table, so
- * there's no double counting between "Activity Points" and "Attendance".
+ * Point values for attendance status — the only place attendance earns
+ * points. It does not write into the activities table, avoiding double
+ * counting between "Activity Points" and "Attendance".
  */
 const ATTENDANCE_POINTS = [
     'Present' => 5,
@@ -255,7 +257,7 @@ const ATTENDANCE_POINTS = [
 ];
 
 /**
- * A scout's activity log with individual point values (for the "how did I earn this" view).
+ * A scout's activity log with individual point values.
  */
 function get_scout_activities(PDO $pdo, int $scoutId): array
 {
@@ -265,8 +267,8 @@ function get_scout_activities(PDO $pdo, int $scoutId): array
 }
 
 /**
- * Attendance history with the new point value attached to each record, plus a running total.
- * Only confirmed attendance is included (via get_scout_attendance_history).
+ * Attendance history with the point value attached to each record, plus a running total.
+ * Only confirmed attendance is included.
  */
 function get_scout_attendance_with_points(PDO $pdo, int $scoutId): array
 {
@@ -292,7 +294,6 @@ function calculate_progress_score(float $activityPoints, float $attendancePoints
 
 /**
  * Full troop leaderboard: every scout's name + combined points, highest first.
- * Only confirmed attendance counts (via get_scout_attendance_history).
  */
 function get_troop_leaderboard(PDO $pdo): array
 {
