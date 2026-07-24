@@ -258,7 +258,7 @@ $daily_quote = $bsp_quotes[array_rand($bsp_quotes)];
     <div class="modal-box">
         <button class="modal-close" onclick="closeModal('modal-attendance')">&times;</button>
         <h2>Attendance Points</h2>
-        <p style="font-size:13px;color:var(--ink-soft,#5B5F52);">Present = 10 pts &middot; Late = 8 pts &middot; Excused = 0 pts &middot; Absent = 0 pts</p>
+        <p style="font-size:13px;color:var(--ink-soft,#5B5F52);">Present = <?= ATTENDANCE_POINTS['Present'] ?> pts &middot; Late = <?= ATTENDANCE_POINTS['Late'] ?> pts &middot; Excused = <?= ATTENDANCE_POINTS['Excused'] ?> pts &middot; Absent = <?= ATTENDANCE_POINTS['Absent'] ?> pts</p>
         <?php if (empty($attendanceData['records'])): ?>
             <p class="empty-state">No attendance recorded yet.</p>
         <?php else: ?>
