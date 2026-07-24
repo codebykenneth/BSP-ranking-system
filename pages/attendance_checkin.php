@@ -29,7 +29,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $stmt->execute([$eventId, (int) $scoutId, $status]);
         $row = $stmt->fetch();
         if ($row) {
-            sync_attendance_points($pdo, (int) $row['id'], $status, (int) $scoutId, $event['title'], $event['event_date']);
+            sync_attendance_points($pdo, (int) $row['id'], $status, (int) $scoutId, $event['title'], $event['event_date'], (int) $event['points_value']);
         }
     }
     header('Location: ' . base_url('pages/events.php?checked_in=1'));
