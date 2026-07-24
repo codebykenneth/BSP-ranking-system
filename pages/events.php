@@ -44,6 +44,8 @@ require_once __DIR__ . '/../includes/sidebar.php';
         </div>
     <?php elseif (isset($_GET['deleted'])): ?>
         <div class="alert alert-success">Event deleted.</div>
+    <?php elseif (isset($_GET['updated'])): ?>
+        <div class="alert alert-success">Event updated.</div>
     <?php elseif (isset($_GET['checked_in'])): ?>
         <div class="alert alert-success">Attendance saved for this event.</div>
     <?php endif; ?>
@@ -83,6 +85,7 @@ require_once __DIR__ . '/../includes/sidebar.php';
                             <td><?= (int) $ev['present_count'] ?></td>
                             <td class="actions">
                                 <a href="<?= base_url('pages/attendance_checkin.php?event_id=' . $ev['id']) ?>" class="btn btn-small btn-secondary">Check Attendance</a>
+                                <a href="<?= base_url('pages/event_edit.php?id=' . $ev['id']) ?>" class="btn btn-small btn-secondary">Edit</a>
                                 <a href="<?= base_url('pages/attendance_checkin.php?event_id=' . $ev['id'] . '&print=1') ?>" target="_blank" class="btn btn-small btn-secondary">Print Sheet</a>
                                 <a href="<?= base_url('pages/events.php?delete=' . $ev['id']) ?>"
                                    class="btn btn-small btn-danger"
