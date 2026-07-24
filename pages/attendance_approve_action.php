@@ -17,14 +17,14 @@ if ($attendanceId && in_array($status, ['Present', 'Late', 'Absent', 'Excused'],
     $stmt->execute([$status, $attendanceId]);
 
     $info = $pdo->prepare(
-        "SELECT a.scout_id, e.title AS event_title, e.event_date
+        "SELECT a.scout_id, e.title AS event_title, e.event_date, e.points_value
          FROM attendance a JOIN events e ON e.id = a.event_id
          WHERE a.id = ?"
     );
     $info->execute([$attendanceId]);
     $row = $info->fetch();
     if ($row) {
-        sync_attendance_points($pdo, $attendanceId, $status, (int) $row['scout_id'], $row['event_title'], $row['event_date']);
+        sync_attendance_points($pdo, $attendanceId, $status, (int) $row['scout_id'], $row['event_title'], $row['event_date'], (int) $row['points_value']);
     }
 }
 
