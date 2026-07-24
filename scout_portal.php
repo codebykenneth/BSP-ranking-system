@@ -33,7 +33,6 @@ $announcements = get_recent_announcements($pdo, 5);
 $activities = get_scout_activities($pdo, $scoutId);
 $attendanceData = get_scout_attendance_with_points($pdo, $scoutId);
 $attendancePoints = $attendanceData['total'];
-$leaderboard = get_troop_leaderboard($pdo);
 
 $activityPoints = (float) ($myData['activity_points'] ?? 0);
 $progressScore = calculate_progress_score($activityPoints, $attendancePoints, (int) $scout['rank_level']);
@@ -315,11 +314,11 @@ $daily_quote = $bsp_quotes[array_rand($bsp_quotes)];
         <table class="modal-table">
             <thead><tr><th>#</th><th>Name</th><th>Points</th></tr></thead>
             <tbody>
-                <?php foreach ($leaderboard as $i => $entry): ?>
-                    <tr class="leaderboard-row <?= $entry['id'] === $scoutId ? 'me' : '' ?>">
+                <?php foreach ($ranked as $i => $entry): ?>
+                    <tr class="leaderboard-row <?= (int) $entry['id'] === $scoutId ? 'me' : '' ?>">
                         <td class="rank-badge">#<?= $i + 1 ?></td>
-                        <td><?= e($entry['name']) ?><?= $entry['id'] === $scoutId ? ' (You)' : '' ?></td>
-                        <td><?= number_format($entry['points'], 0) ?></td>
+                        <td><?= e($entry['name']) ?><?= (int) $entry['id'] === $scoutId ? ' (You)' : '' ?></td>
+                        <td><?= number_format($entry['score'], 2) ?></td>
                     </tr>
                 <?php endforeach; ?>
             </tbody>
