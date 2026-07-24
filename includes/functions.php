@@ -56,11 +56,12 @@ function get_total_points(PDO $pdo, int $scoutId): int
 
 /**
  * Computed attendance % for one scout from real event records.
+ * Only counts CONFIRMED attendance — pending self check-ins don't count
+ * until an admin approves them.
  * Present = full credit, Late = half credit, Absent = none,
  * Excused events don't count against them (excluded from the denominator).
  * Falls back to the scout's manually-set `attendance` field if they have
- * no attendance records yet (e.g. newly added, or before the attendance
- * system existed).
+ * no confirmed attendance records yet.
  */
 function get_attendance_percentage(PDO $pdo, int $scoutId, float $fallback = 0): float
 {
@@ -69,7 +70,7 @@ function get_attendance_percentage(PDO $pdo, int $scoutId, float $fallback = 0):
             "SELECT
                 SUM(CASE WHEN status IN ('Present','Late','Absent') THEN 1 ELSE 0 END) AS countable,
                 SUM(CASE WHEN status = 'Present' THEN 1 WHEN status = 'Late' THEN 0.5 ELSE 0 END) AS weight
-             FROM attendance WHERE scout_id = ?"
+             FROM attendance WHERE scout_id = ? AND submission_status = 'confirmed'"
         );
         $stmt->execute([$scoutId]);
         $row = $stmt->fetch();
@@ -96,7 +97,7 @@ function calculate_score(float $activityPoints, int $rankLevel, float $attendanc
 
 /**
  * Returns every scout with total points + computed attendance % + score,
- * sorted from highest to lowest score.
+ * sorted from highest to lowest score. Only CONFIRMED attendance counts.
  */
 function get_ranked_scouts(PDO $pdo): array
 {
@@ -113,7 +114,7 @@ function get_ranked_scouts(PDO $pdo): array
         $sql .= " LEFT JOIN (SELECT scout_id,
                                 SUM(CASE WHEN status IN ('Present','Late','Absent') THEN 1 ELSE 0 END) AS countable,
                                 SUM(CASE WHEN status = 'Present' THEN 1 WHEN status = 'Late' THEN 0.5 ELSE 0 END) AS weight
-                              FROM attendance GROUP BY scout_id) at
+                              FROM attendance WHERE submission_status = 'confirmed' GROUP BY scout_id) at
                          ON at.scout_id = s.id";
         $hasAttendanceTable = true;
     } catch (PDOException $e) {
@@ -151,6 +152,8 @@ function get_low_attendance_scouts(PDO $pdo, float $threshold = 75): array
 
 /**
  * Full per-event attendance history for one scout, most recent first.
+ * Only CONFIRMED attendance shows here — pending self check-ins won't
+ * appear (or count for points) until an admin approves them.
  */
 function get_scout_attendance_history(PDO $pdo, int $scoutId): array
 {
@@ -158,7 +161,7 @@ function get_scout_attendance_history(PDO $pdo, int $scoutId): array
         "SELECT e.title, e.event_date, att.status
          FROM attendance att
          JOIN events e ON e.id = att.event_id
-         WHERE att.scout_id = ?
+         WHERE att.scout_id = ? AND att.submission_status = 'confirmed'
          ORDER BY e.event_date DESC"
     );
     $stmt->execute([$scoutId]);
@@ -240,39 +243,13 @@ function get_scout_attendance_for_event(PDO $pdo, int $eventId, int $scoutId): ?
 }
 
 /**
- * Keep the activities table in sync with a single attendance record's
- * current status. Present/Late earns points automatically; anything else
- * (Absent/Excused) removes any previously-awarded entry. Safe to call
- * repeatedly — it always deletes the old auto-entry first, so overriding
- * a status (e.g. admin corrects Present -> Absent) never double-counts.
- */
-function sync_attendance_points(
-    PDO $pdo,
-    int $attendanceId,
-    string $status,
-    int $scoutId,
-    string $eventTitle,
-    string $eventDate,
-    int $pointsPerAttendance = 5
-): void {
-    $del = $pdo->prepare("DELETE FROM activities WHERE attendance_id = ?");
-    $del->execute([$attendanceId]);
-
-    if (in_array($status, ['Present', 'Late'], true)) {
-        $ins = $pdo->prepare(
-            "INSERT INTO activities (scout_id, activity_name, points, activity_date, attendance_id)
-             VALUES (?, ?, ?, ?, ?)"
-        );
-        $ins->execute([$scoutId, $eventTitle, $pointsPerAttendance, $eventDate, $attendanceId]);
-    }
-}
-
-/**
- * Point values for attendance status — used for the scout's points-based view.
+ * Point values for attendance status — this is the ONLY place attendance
+ * earns points now. It no longer writes into the activities table, so
+ * there's no double counting between "Activity Points" and "Attendance".
  */
 const ATTENDANCE_POINTS = [
-    'Present' => 10,
-    'Late'    => 8,
+    'Present' => 5,
+    'Late'    => 4,
     'Excused' => 0,
     'Absent'  => 0,
 ];
@@ -289,6 +266,7 @@ function get_scout_activities(PDO $pdo, int $scoutId): array
 
 /**
  * Attendance history with the new point value attached to each record, plus a running total.
+ * Only confirmed attendance is included (via get_scout_attendance_history).
  */
 function get_scout_attendance_with_points(PDO $pdo, int $scoutId): array
 {
@@ -314,6 +292,7 @@ function calculate_progress_score(float $activityPoints, float $attendancePoints
 
 /**
  * Full troop leaderboard: every scout's name + combined points, highest first.
+ * Only confirmed attendance counts (via get_scout_attendance_history).
  */
 function get_troop_leaderboard(PDO $pdo): array
 {
