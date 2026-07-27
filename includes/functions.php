@@ -317,3 +317,45 @@ function get_troop_leaderboard(PDO $pdo): array
     usort($leaderboard, fn($a, $b) => $b['points'] <=> $a['points']);
     return $leaderboard;
 }
+
+/**
+ * Auto-marks every scout as Absent for any event whose 24-hour check-in
+ * window has closed (call time, or midnight if no call time was set,
+ * plus 24 hours) and who never checked in, self-excused, or were marked
+ * by an admin. Safe to run on every page load: it uses INSERT ... ON
+ * CONFLICT DO NOTHING, so it only ever fills in *missing* rows and can
+ * never touch or overwrite a real Present, Late, Excused, or Absent
+ * record that already exists.
+ */
+function auto_mark_absent_for_expired_events(PDO $pdo): void
+{
+    try {
+        $expiredEvents = $pdo->query(
+            "SELECT id FROM events
+             WHERE (event_date + COALESCE(call_time, '00:00'::time) + INTERVAL '24 hours') < NOW()"
+        )->fetchAll();
+    } catch (PDOException $e) {
+        return;
+    }
+
+    if (empty($expiredEvents)) {
+        return;
+    }
+
+    $scouts = $pdo->query("SELECT id FROM scouts")->fetchAll();
+    if (empty($scouts)) {
+        return;
+    }
+
+    $insert = $pdo->prepare(
+        "INSERT INTO attendance (event_id, scout_id, status, submission_status, submitted_by_scout, submitted_at)
+         VALUES (?, ?, 'Absent', 'confirmed', FALSE, NOW())
+         ON CONFLICT (event_id, scout_id) DO NOTHING"
+    );
+
+    foreach ($expiredEvents as $ev) {
+        foreach ($scouts as $sc) {
+            $insert->execute([(int) $ev['id'], (int) $sc['id']]);
+        }
+    }
+}
