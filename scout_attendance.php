@@ -4,6 +4,8 @@ require_scout_login();
 require_once __DIR__ . '/config/database.php';
 require_once __DIR__ . '/includes/functions.php';
 
+auto_mark_absent_for_expired_events($pdo);
+
 $scoutId = (int) $_SESSION['scout_id'];
 
 $stmt = $pdo->prepare("SELECT * FROM scouts WHERE id = ?");
