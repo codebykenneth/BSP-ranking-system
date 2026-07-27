@@ -4,6 +4,8 @@ require_login();
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../includes/functions.php';
 
+auto_mark_absent_for_expired_events($pdo);
+
 $totalScouts     = (int) $pdo->query("SELECT COUNT(*) FROM scouts")->fetchColumn();
 $totalActivities = (int) $pdo->query("SELECT COUNT(*) FROM activities")->fetchColumn();
 $totalTroops     = (int) $pdo->query("SELECT COUNT(DISTINCT troop) FROM scouts")->fetchColumn();
